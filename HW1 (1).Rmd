@@ -1,0 +1,277 @@
+---
+title: "HW1"
+author: "sampras"
+date: "01/29/2025"
+output:
+  html_document: default
+  pdf_document: default
+---
+```{r}
+
+
+```
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+library(ggplot2)      # For visualizations
+library(dplyr)        # For data manipulation
+library(tidyr)        # For reshaping data
+library(readr)        # To read csv files
+```
+
+```{r}
+setwd("C:/Users/SAM/OneDrive/Documents/data science/as 1")
+
+adult <- read.csv("adult.csv")
+
+str(adult)
+```
+
+```{r}
+# 1(a)
+summary(adult)
+
+#Based on the Summary of the Two Variables: Age and Hours per Week
+#Both age and hours worked per week have mean values that closely align with their medians, suggesting nearly symmetric distributions.
+#Age exhibits a wider range, with most individuals between 28 and 48 years old, whereas hours per week is more concentrated, with the majority working between 40 and 45 hours.
+#The maximum age of 90 indicates slight right skewness due to older individuals, while the maximum of 99 hours per week suggests minor right skewness, likely from outliers.
+#Both variables have relatively small interquartile ranges, indicating that most of the population falls within a narrow range of values.
+
+
+
+```
+
+```{r}
+# 1(b)
+# Visualisation for Age
+
+ggplot(adult, aes(age))+geom_histogram(binwidth = 06)
+
+# Visualization for Hours per Week
+
+ggplot(adult, aes(hours.per.week))+geom_histogram(binwidth = 06)
+
+#I selected a histogram for my presentation because it is straightforward and easy to interpret. Histograms group data into bins, making patterns easy to spot.
+#The histogram for "age" reveals a tail extending towards older ages, with a larger concentration of observations in younger age groups, which aligns with the slightly right-skewed distribution described in the summary statistics.
+# The distribution of hours worked per week is predominantly centered around 40 hours, reflecting that most people work full-time. There's a slight right skew, with a few individuals working considerably more than 40 hours, including some outliers reaching up to 100 hours per week.
+# Overall, the visualizations corroborate the hypotheses from part (a) based on the summary statistics.
+```
+```{r}
+# 1(c)
+
+numerical_adult <- adult[, sapply(adult, is.numeric)]
+pairs(numerical_adult)
+
+#The scatterplot matrix provides valuable insights into the relationships between age and hours worked per week.
+#Age vs. fnlwgt, education.num, and hours worked per week: There is no evident strong linear relationship between age and these variables. However, the age vs. education.num plot suggests a slight upward trend, indicating that older individuals tend to have somewhat higher levels of education.
+#Hours worked per week: This variable appears mostly independent of the others, as there is no noticeable correlation in the pairwise plots.
+#Overall, while no strong linear relationships are found, some weak associations exist, particularly between age and education.num. The scatterplot matrix effectively shows the distribution and clustering of the data, but most variables do not reveal significant interactions.
+
+```
+```{r}
+# 1(d)
+# Considering the data from the workclass and group_by education
+
+library(tidyverse)
+
+ggplot(adult, aes(x = workclass))+geom_bar()
+
+education_counts <- adult %>%
+ group_by(education) %>%
+ count() %>%
+ arrange(desc(n))
+
+education_counts
+```
+```{r}
+# 1(e)
+
+#Our goal here is to explore the relationship between the type of work a person does and their level of education. The data reveals some intriguing trends.
+ 
+# For instance, in the "State government" sector, there appears to be a higher concentration of individuals with mid-level education, such as high school diplomas or some college experience. In contrast, the "Federal government" sector shows a clear tendency toward a more highly educated workforce, with many individuals holding bachelor's degrees or higher. This indicates that federal positions likely have stricter educational requirements than state-level roles, which seem to attract a broader range of educational backgrounds.
+# These observations imply that the type of work a person engages in could be associated with their level of education.
+
+# Create a contingency table
+cross_table <- table(adult$workclass, adult$education)
+print(cross_table)
+
+# Convert to percentages
+cross_table_pct <- prop.table(cross_table, margin = 2) * 100  
+
+# Create the bar plot
+barplot(cross_table_pct, beside = TRUE, col = rainbow(nrow(cross_table)), 
+        main = "Relationship between Workclass and Education", 
+        xlab = "Workclass", ylab = "Percentage", las = 2)
+
+# Add a legend
+legend("topright", legend = rownames(cross_table), fill = rainbow(nrow(cross_table)), cex = 0.8)
+
+
+```
+```{r}
+# 2(a)
+setwd("C:/Users/SAM/OneDrive/Documents/data science/as 1")
+
+population_even <- read.csv("population_even.csv")
+population_odd <- read.csv("population_odd.csv")
+
+population_both <- left_join(population_even, population_odd, by = "NAME")
+
+head(population_both)
+
+
+
+```
+```{r}
+# 2(b)
+
+#(a)
+duplicate_col <- duplicated(names(population_both))
+if (any(duplicate_col)) {
+ population_both <- population_both[, !duplicate_col, drop =
+FALSE]
+}
+head(population_both)
+
+#(b)
+colnames(population_both) <- gsub("POPESTIMATE", "", 
+colnames(population_both))
+head(population_both)
+
+#(c)
+year_columns <- grep("^\\d{4}$", colnames(population_both))
+sorted_years <- sort(colnames(population_both)[year_columns])
+population_both <- population_both[, c("STATE.x", "NAME", 
+sorted_years)]
+head(population_both)
+
+```
+```{r}
+
+library(zoo)
+
+# Replace missing values with the average of surrounding years
+population_filled <- population_both %>%
+  mutate(across(`2010`:`2019`, ~ na.fill(.x, "extend")))
+
+# Show the head of the filled data
+head(population_filled)
+
+```
+```{r}
+# 2(d)
+# (a)
+
+# Get the maximum population for a single year for each state
+max_population_per_state <- population_filled %>%
+  rowwise() %>%
+  mutate(max_population = max(c_across(`2010`:`2019`), na.rm = TRUE))
+
+max_population_per_state
+
+# (b)
+# Get the total population across all years for each state
+total_population_per_state <- population_filled %>%
+  rowwise() %>%
+  mutate(total_population = sum(c_across(`2010`:`2019`), na.rm = TRUE))
+
+total_population_per_state
+
+```
+```{r}
+# 2(e)
+
+# Total US population for a single year
+total_us_population_2010 <- sum(population_filled$`2010`, na.rm = TRUE)
+
+
+total_us_population_2010
+
+```
+```{r}
+# 3
+
+# Choose specific states to visualize
+
+# Load required libraries
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(scales)
+
+# Select specific states
+filtered_states <- population_both %>%
+  filter(NAME %in% c("Florida", "Illinois", "Ohio"))
+
+# Reshape data to long format
+population_tidy <- filtered_states %>%
+  pivot_longer(cols = starts_with("20"), names_to = "Year", values_to = "Population")
+
+# Convert year column to numeric format
+population_tidy$Year <- as.integer(sub("X", "", population_tidy$Year))
+
+# Create the plot
+population_trend <- ggplot(population_tidy, aes(x = Year, y = Population, color = NAME)) +
+  geom_line(linewidth = 1) +  # Updated from 'size' to 'linewidth'
+  scale_x_continuous(breaks = seq(2010, 2019, by = 2)) +
+  scale_y_continuous(labels = comma_format()) +
+  labs(
+    title = "State Population Trends Over Time",
+    x = "Year",
+    y = "Total Population",
+    color = "State"
+  ) +
+  theme_minimal()
+
+# Display the plot
+print(population_trend)
+
+
+```
+```{r}
+#4
+
+#a. Describe two ways in which data can be dirty, and for each one, provide a potential solution. 
+#Ans. 
+# Missing data:
+
+#Problem:Missing values in certain records lead to an incomplete analysis.
+#Solution:To handle missing values, use predictive modeling, or impute the missing data with the mean or median. Alternatively, remove rows or columns that contain a large number of missing values.
+
+# Inconsistent data:
+
+#Problem: To address missing values, you can either use predictive modeling or impute the missing data with the mean or median. Alternatively, you may choose to remove rows or columns with a significant amount of missing data.
+#Solution:To ensure consistency, standardize the formats across the dataset (e.g., using a consistent date format). Alternatively, apply string-matching techniques to correct any mismatched text entries.
+
+#b.
+
+# a) Clustering:
+#Clustering is used to categorize clients based on similar buying behaviors. For example, K-Means or Hierarchical Clustering can identify five distinct client groups that often purchase similar products.
+
+# b) Classification:
+#By analyzing patterns in historical data, a classification model, such as Decision Trees or Logistic Regression, can predict the probability of a customer buying milk based on their past purchasing behavior.
+#c) Association rule mining:
+#Association rule mining identifies product sets that are frequently purchased together, revealing relationships such as 'customers who buy bread often buy butter.' This can be achieved using algorithms like FP-Growth or Apriori.
+
+
+#c.
+
+#a)Organizing a company’s customer base by educational attainment is not a data mining task: It’s simply categorizing or grouping based on a single feature, without uncovering any hidden patterns or insights.
+#b)Calculating a company’s total sales is not a data mining task: This is a basic aggregation process that computes a known value, rather than revealing any underlying patterns.
+#c)Identifying students in a student database is not a data mining task: Sorting data is a basic organizational activity that does not aim to uncover any significant patterns or insights.
+#d) Predicting the outcome of rolling a fair pair of dice is not a data mining task: This involves a random event, which is not related to discovering patterns or knowledge from data.
+#e) Predicting a company's future stock price based on historical data is a data mining task: This involves analyzing past data to uncover patterns and make future predictions, often using techniques such as regression or time series analysis.
+```
+```
+
+
